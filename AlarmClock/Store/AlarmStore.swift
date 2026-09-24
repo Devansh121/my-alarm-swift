@@ -107,9 +107,28 @@ final class AlarmStore: ObservableObject {
 
     // MARK: - Sync
 
+    /// How long after its fire time an alarm still counts as "ringing now"
+    /// rather than "missed" — matches the notification burst window (8 × 30s).
+    static let ringWindow: TimeInterval = 240
+
     /// Call on foreground: reconcile missed one-shots, resync notifications.
     func refreshAndReschedule() {
         runOnMain {
+            // An alarm that fired within the ring window is ringing RIGHT NOW —
+            // opening the app must take over with the in-app ringing screen,
+            // not silently disable it as "missed".
+            if self.ringing == nil,
+               let live = self.alarms.first(where: { alarm in
+                   alarm.enabled &&
+                   alarm.nextFireDate.map {
+                       $0 <= self.now() && self.now() < $0 + Self.ringWindow
+                   } ?? false
+               }) {
+                self.ringing = live
+                let tone = self.pending[live.id]?.toneFileName ?? bundledTones[0].fileName
+                self.ringer.start(toneFileName: tone)
+            }
+
             let reconciled = self.reconcileMissed(self.alarms)
 
             self.engine.cancelAll()
@@ -171,14 +190,17 @@ final class AlarmStore: ObservableObject {
 
     /// A one-shot alarm whose persisted fire time passed while the app was dead
     /// already rang as a system notification — disable it instead of silently
-    /// rescheduling it for tomorrow.
+    /// rescheduling it for tomorrow. Alarms still inside the ring window are
+    /// NOT missed — they're ringing, and the takeover in refreshAndReschedule
+    /// (or an explicit stop) owns their fate.
     private func reconcileMissed(_ all: [Alarm]) -> [Alarm] {
         let currentNow = now()
         return all.map { alarm in
             if alarm.enabled,
                alarm.repeatDays.isEmpty,
+               alarm.id != ringing?.id,
                let stored = alarm.nextFireDate,
-               stored <= currentNow {
+               stored + Self.ringWindow <= currentNow {
                 var disabled = alarm
                 disabled.enabled = false
                 return disabled
