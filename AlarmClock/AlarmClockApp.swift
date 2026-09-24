@@ -15,7 +15,7 @@ struct AlarmClockApp: App {
 
     var body: some Scene {
         WindowGroup {
-            AppRootPlaceholder(store: store)
+            RootView(store: store)
                 .onAppear { NotificationDelegate.shared.store = store }
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active {
@@ -23,17 +23,5 @@ struct AlarmClockApp: App {
                     }
                 }
         }
-    }
-}
-
-/// integration PR swaps this for RootView(store:)
-private struct AppRootPlaceholder: View {
-    let store: AlarmStore
-
-    var body: some View {
-        Text("Alarm")
-            .foregroundStyle(.white)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(.black)
     }
 }
