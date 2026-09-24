@@ -22,9 +22,12 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
-        let alarmId = notification.request.identifier
+        let alarmId = BurstPlan.alarmId(fromNotificationIdentifier: notification.request.identifier)
         DispatchQueue.main.async { [weak self] in
             self?.store?.onAlarmFired(id: alarmId)
+            // The in-app ringer has taken over — cancel the remaining burst so
+            // later chimes don't stack up behind the ringing screen.
+            NotificationAlarmEngine.shared.cancel(alarmId: alarmId)
         }
         completionHandler([])
     }
@@ -34,7 +37,7 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
-        let alarmId = response.notification.request.identifier
+        let alarmId = BurstPlan.alarmId(fromNotificationIdentifier: response.notification.request.identifier)
         let action = response.actionIdentifier
         DispatchQueue.main.async { [weak self] in
             guard let store = self?.store else { return }
