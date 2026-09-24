@@ -15,6 +15,8 @@ jobs:
         run: xcodegen generate
       - name: Build and test
         run: |
+          UDID=$(xcrun simctl list devices available --json \
+            | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(dev['udid'] for devs in d.values() for dev in devs if 'iPhone' in dev['name']))")
           xcodebuild -project AlarmClock.xcodeproj -scheme AlarmClock \
-            -destination 'platform=iOS Simulator,name=iPhone 16 Pro' \
+            -destination "platform=iOS Simulator,id=$UDID" \
             CODE_SIGNING_ALLOWED=NO test | xcpretty && exit ${PIPESTATUS[0]}
