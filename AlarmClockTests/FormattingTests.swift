@@ -102,7 +102,7 @@ final class FormattingTests: XCTestCase {
     }
 
     func testTonePinned() {
-        XCTAssertEqual(AlarmFormatting.toneDisplayName(.pinned(toneId: "chimes")), "Chimes")
+        XCTAssertEqual(AlarmFormatting.toneDisplayName(.pinned(toneId: "chimes")), "Gentle Chimes")
     }
 
     func testTonePinnedUnknownFallsBackToRandom() {
