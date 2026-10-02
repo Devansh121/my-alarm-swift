@@ -61,6 +61,32 @@ final class AlarmStore: ObservableObject {
         refreshAndReschedule()
     }
 
+    // MARK: - Skip next
+
+    /// Skips only the next occurrence of a repeating alarm; it resumes on its
+    /// own afterwards. For a one-shot there is nothing after the next
+    /// occurrence, so skipping it is the same as turning it off.
+    func skipNext(id: String) {
+        guard let index = alarms.firstIndex(where: { $0.id == id }), alarms[index].enabled else { return }
+        if alarms[index].repeatDays.isEmpty {
+            alarms[index].enabled = false
+        } else {
+            var unskipped = alarms[index]
+            unskipped.skippedFireDate = nil
+            alarms[index].skippedFireDate = NextFireCalculator.nextOccurrence(
+                alarm: unskipped, after: now(), calendar: calendar
+            )
+        }
+        refreshAndReschedule()
+    }
+
+    /// Undoes a pending "skip next".
+    func cancelSkip(id: String) {
+        guard let index = alarms.firstIndex(where: { $0.id == id }) else { return }
+        alarms[index].skippedFireDate = nil
+        refreshAndReschedule()
+    }
+
     // MARK: - Ringing lifecycle
 
     func onAlarmFired(id: String) {
@@ -129,7 +155,7 @@ final class AlarmStore: ObservableObject {
                 self.ringer.start(toneFileName: tone)
             }
 
-            let reconciled = self.reconcileMissed(self.alarms)
+            let reconciled = self.reconcileSkips(self.reconcileMissed(self.alarms))
 
             self.engine.cancelAll()
             var newPending: [String: FireRequest] = [:]
@@ -206,6 +232,21 @@ final class AlarmStore: ObservableObject {
                 return disabled
             }
             return alarm
+        }
+    }
+
+    /// Drops skips that no longer apply — the skipped occurrence has passed,
+    /// the alarm was disabled, or an edit moved it off the schedule — so a
+    /// skip never lingers past the one occurrence it was meant for.
+    private func reconcileSkips(_ all: [Alarm]) -> [Alarm] {
+        let currentNow = now()
+        return all.map { alarm in
+            guard alarm.skippedFireDate != nil,
+                  NextFireCalculator.activeSkip(alarm: alarm, after: currentNow, calendar: calendar) == nil
+            else { return alarm }
+            var cleared = alarm
+            cleared.skippedFireDate = nil
+            return cleared
         }
     }
 
