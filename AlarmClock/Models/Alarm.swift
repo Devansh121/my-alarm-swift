@@ -14,14 +14,14 @@ struct Tone: Identifiable, Equatable {
 
 /// Bundled .caf tones shipped in the app bundle.
 let bundledTones: [Tone] = [
-    Tone(id: "radial", displayName: "Radial", fileName: "tone_radial.caf"),
-    Tone(id: "ascent", displayName: "Ascent", fileName: "tone_ascent.caf"),
-    Tone(id: "pulse", displayName: "Pulse", fileName: "tone_pulse.caf"),
-    Tone(id: "chimes", displayName: "Chimes", fileName: "tone_chimes.caf"),
-    Tone(id: "cosmic", displayName: "Cosmic", fileName: "tone_cosmic.caf"),
-    Tone(id: "beacon", displayName: "Beacon", fileName: "tone_beacon.caf"),
-    Tone(id: "signal", displayName: "Signal", fileName: "tone_signal.caf"),
-    Tone(id: "waves", displayName: "Waves", fileName: "tone_waves.caf"),
+    Tone(id: "radial", displayName: "Classic Bell", fileName: "tone_radial.caf"),
+    Tone(id: "ascent", displayName: "Rise & Shine", fileName: "tone_ascent.caf"),
+    Tone(id: "pulse", displayName: "Digital Pulse", fileName: "tone_pulse.caf"),
+    Tone(id: "chimes", displayName: "Gentle Chimes", fileName: "tone_chimes.caf"),
+    Tone(id: "cosmic", displayName: "Cosmic Drift", fileName: "tone_cosmic.caf"),
+    Tone(id: "beacon", displayName: "Marimba", fileName: "tone_beacon.caf"),
+    Tone(id: "signal", displayName: "Music Box", fileName: "tone_signal.caf"),
+    Tone(id: "waves", displayName: "Morning Birds", fileName: "tone_waves.caf"),
 ]
 
 /// 1 = Monday ... 7 = Sunday (ISO), matching Locale-independent storage.

@@ -30,6 +30,7 @@ targets:
     settings:
       base:
         DEVELOPMENT_TEAM: GBQ9HCSRG7
+        GENERATE_INFOPLIST_FILE: YES
 schemes:
   AlarmClock:
     build:
