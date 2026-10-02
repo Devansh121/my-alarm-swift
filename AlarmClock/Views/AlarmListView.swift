@@ -36,6 +36,25 @@ struct AlarmListView: View {
                 }
                 .tint(.orange)
             }
+            ToolbarItem(placement: .topBarTrailing) {
+                testAlarmMenu
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                if let history = store.history {
+                    NavigationLink {
+                        HistoryView(history: history)
+                    } label: {
+                        Image(systemName: "chart.bar.xaxis")
+                    }
+                    .tint(.orange)
+                    .accessibilityLabel("History")
+                }
+            }
+        }
+        .safeAreaInset(edge: .bottom) {
+            if let test = store.testAlarm {
+                TestAlarmBanner(test: test) { store.cancelTestAlarm() }
+            }
         }
         .environment(\.editMode, $editMode)
         .sheet(item: $editingAlarm) { alarm in
@@ -52,6 +71,7 @@ struct AlarmListView: View {
                 AlarmRow(
                     alarm: alarm,
                     isEditing: editMode.isEditing,
+                    skipText: skipText(for: alarm),
                     onToggle: { enabled in
                         store.setEnabled(id: alarm.id, enabled: enabled)
                     }
@@ -59,6 +79,12 @@ struct AlarmListView: View {
                 .contentShape(Rectangle())
                 .onTapGesture {
                     editingAlarm = alarm
+                }
+                .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                    skipButton(for: alarm)
+                }
+                .contextMenu {
+                    skipButton(for: alarm)
                 }
                 .listRowBackground(Color.black)
                 .listRowSeparatorTint(Color(white: 0.22))
@@ -72,6 +98,61 @@ struct AlarmListView: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .background(Color.black)
+    }
+
+    /// "Test my alarm": rings a real alarm in 30s with a chosen alarm's
+    /// settings (or defaults) so the user can lock the phone and check it.
+    private var testAlarmMenu: some View {
+        Menu {
+            Section("Ring a test alarm in 30 seconds") {
+                ForEach(store.alarms) { alarm in
+                    Button {
+                        store.startTestAlarm(basedOn: alarm)
+                    } label: {
+                        Text("\(AlarmFormatting.timeString(hour: alarm.hour, minute: alarm.minute)) · \(alarm.label)")
+                    }
+                }
+                Button("Default Settings") {
+                    store.startTestAlarm(basedOn: nil)
+                }
+            }
+        } label: {
+            Image(systemName: "bell.badge")
+        }
+        .tint(.orange)
+        .accessibilityLabel("Test My Alarm")
+    }
+
+    // MARK: Skip next
+
+    /// "Skipping Tue 7:00 AM" while a skip is in effect. Evaluated against the
+    /// current time so a skip whose occurrence already passed never shows.
+    private func skipText(for alarm: Alarm) -> String? {
+        NextFireCalculator.activeSkip(alarm: alarm, after: store.now(), calendar: store.calendar)
+            .map { AlarmFormatting.skipSummary($0, calendar: store.calendar) }
+    }
+
+    /// "Skip Next" / "Undo Skip" for enabled repeating alarms. Hidden for
+    /// one-shots (their toggle already covers "don't ring next time").
+    @ViewBuilder
+    private func skipButton(for alarm: Alarm) -> some View {
+        if alarm.enabled, !alarm.repeatDays.isEmpty {
+            if skipText(for: alarm) != nil {
+                Button {
+                    store.cancelSkip(id: alarm.id)
+                } label: {
+                    Label("Undo Skip", systemImage: "arrow.uturn.backward")
+                }
+                .tint(.gray)
+            } else {
+                Button {
+                    store.skipNext(id: alarm.id)
+                } label: {
+                    Label("Skip Next", systemImage: "forward.end")
+                }
+                .tint(.orange)
+            }
+        }
     }
 
     private var emptyState: some View {
@@ -91,6 +172,7 @@ struct AlarmListView: View {
 private struct AlarmRow: View {
     let alarm: Alarm
     let isEditing: Bool
+    var skipText: String? = nil
     let onToggle: (Bool) -> Void
 
     private var time: (time: String, period: String) {
@@ -98,7 +180,9 @@ private struct AlarmRow: View {
     }
 
     private var secondary: String {
-        AlarmFormatting.secondaryLine(label: alarm.label, days: alarm.repeatDays)
+        AlarmFormatting.secondaryLine(
+            label: alarm.label, days: alarm.repeatDays, overrides: alarm.effectiveTimeOverrides
+        )
     }
 
     private var foreground: Color {
@@ -120,6 +204,12 @@ private struct AlarmRow: View {
                     Text(secondary)
                         .font(.subheadline)
                         .foregroundStyle(alarm.enabled ? Color(white: 0.7) : Color(white: 0.45))
+                }
+
+                if let skipText {
+                    Label(skipText, systemImage: "forward.end")
+                        .font(.subheadline)
+                        .foregroundStyle(.orange)
                 }
             }
 

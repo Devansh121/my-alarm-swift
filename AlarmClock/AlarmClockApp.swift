@@ -11,7 +11,8 @@ struct AlarmClockApp: App {
         // no view appearing, and the delegate would drop the action.
         let store = AlarmStore(
             engine: NotificationAlarmEngine.shared,
-            ringer: AlarmRinger.shared
+            ringer: AlarmRinger.shared,
+            history: HistoryLog()
         )
         _store = StateObject(wrappedValue: store)
         NotificationDelegate.shared.store = store

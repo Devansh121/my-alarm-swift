@@ -37,6 +37,24 @@ struct BurstPlan {
         return String(identifier[..<hashIndex])
     }
 
+    /// The burst position encoded in a notification identifier (0 for the
+    /// bare primary id, k for `<alarmId>#<k>`).
+    static func chimeIndex(fromNotificationIdentifier identifier: String) -> Int {
+        guard let hashIndex = identifier.firstIndex(of: "#") else { return 0 }
+        return max(Int(identifier[identifier.index(after: hashIndex)...]) ?? 0, 0)
+    }
+
+    /// When the burst started, given one chime's identifier and delivery
+    /// time — i.e. when the alarm actually went off.
+    static func burstStart(
+        notificationIdentifier identifier: String,
+        deliveredAt: Date,
+        interval: TimeInterval = 30
+    ) -> Date {
+        let k = chimeIndex(fromNotificationIdentifier: identifier)
+        return deliveredAt.addingTimeInterval(-TimeInterval(k) * interval)
+    }
+
     /// Every notification identifier a burst of `chimes` produces for an alarm.
     static func allIdentifiers(alarmId: String, chimes: Int = 8, snooze: Bool = false) -> [String] {
         guard chimes > 0 else { return [] }
