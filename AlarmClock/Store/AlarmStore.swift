@@ -66,9 +66,16 @@ final class AlarmStore: ObservableObject {
     func onAlarmFired(id: String) {
         runOnMain {
             guard let alarm = self.alarms.first(where: { $0.id == id }) else { return }
+            // Already ringing in-app (e.g. ring-on-open takeover, then the
+            // notification tap arrives): don't restart the ring timeline.
+            guard self.ringing?.id != id else { return }
             self.ringing = alarm
             let tone = self.pending[id]?.toneFileName ?? bundledTones[0].fileName
-            self.ringer.start(toneFileName: tone)
+            let firedAt = [self.pending[id]?.fireAt, alarm.nextFireDate]
+                .compactMap { $0 }
+                .filter { $0 <= self.now() }
+                .max()
+            self.startRinger(for: alarm, tone: tone, firedAt: firedAt)
         }
     }
 
@@ -126,7 +133,7 @@ final class AlarmStore: ObservableObject {
                }) {
                 self.ringing = live
                 let tone = self.pending[live.id]?.toneFileName ?? bundledTones[0].fileName
-                self.ringer.start(toneFileName: tone)
+                self.startRinger(for: live, tone: tone, firedAt: live.nextFireDate)
             }
 
             let reconciled = self.reconcileMissed(self.alarms)
@@ -163,6 +170,22 @@ final class AlarmStore: ObservableObject {
     }
 
     // MARK: - Private helpers
+
+    /// Starts the in-app ringer with the alarm's style, resuming the
+    /// vibrate-first / ramp timeline from `firedAt` when the alarm has
+    /// already been ringing (as notifications) for a while.
+    private func startRinger(for alarm: Alarm, tone: String, firedAt: Date?) {
+        let elapsed = Self.elapsedRinging(since: firedAt, now: now())
+        ringer.start(toneFileName: tone, style: alarm.ringStyle, elapsed: elapsed)
+    }
+
+    /// Seconds an alarm has been ringing, or 0 if `firedAt` is unknown,
+    /// in the future, or outside the ring window.
+    static func elapsedRinging(since firedAt: Date?, now: Date) -> TimeInterval {
+        guard let firedAt else { return 0 }
+        let elapsed = now.timeIntervalSince(firedAt)
+        return (0..<ringWindow).contains(elapsed) ? elapsed : 0
+    }
 
     /// One-shot alarms disable themselves once stopped; then re-sync engine + UI.
     private func stopAlarm(_ alarm: Alarm) {

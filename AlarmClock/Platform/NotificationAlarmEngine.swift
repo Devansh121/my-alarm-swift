@@ -53,6 +53,15 @@ final class NotificationAlarmEngine: AlarmEngine {
     /// Schedules the alarm as a burst of identical chimes. If the user presses
     /// volume/power to silence one chime, the next lands `interval` later —
     /// until Snooze/Stop cancels the whole burst.
+    ///
+    /// Gradual volume and vibrate-first are deliberately NOT applied here:
+    /// iOS plays notification sounds itself at the system volume (no ramp is
+    /// possible), and there is no vibration-only notification sound — the
+    /// only approximation is a silent sound file, whose vibration depends on
+    /// the user's haptics settings. Making the first ~60s of chimes silent
+    /// would drop 2 of the 8 audible chimes (or need more chimes, eating
+    /// into the 64-pending-notification limit and the 4-minute ring window).
+    /// Every chime stays audible so the burst's wake guarantee is unchanged.
     func schedule(_ request: FireRequest) {
         let center = UNUserNotificationCenter.current()
         for chime in BurstPlan.plan(for: request, chimes: Self.burstChimes) {
