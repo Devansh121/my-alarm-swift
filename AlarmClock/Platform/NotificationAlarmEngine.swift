@@ -88,10 +88,11 @@ final class NotificationAlarmEngine: AlarmEngine {
         }
     }
 
-    /// Removes every burst identifier for the alarm — both pending chimes and
-    /// any already delivered to the lock screen.
+    /// Removes every burst identifier for the alarm (regular and snooze) —
+    /// both pending chimes and any already delivered to the lock screen.
     func cancel(alarmId: String) {
         let ids = BurstPlan.allIdentifiers(alarmId: alarmId, chimes: Self.burstChimes)
+            + BurstPlan.allIdentifiers(alarmId: alarmId, chimes: Self.burstChimes, snooze: true)
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: ids)
         center.removeDeliveredNotifications(withIdentifiers: ids)

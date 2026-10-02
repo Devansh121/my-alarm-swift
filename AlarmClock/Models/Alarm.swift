@@ -71,6 +71,9 @@ struct Alarm: Identifiable, Codable, Equatable {
     /// The exact occurrence the user chose to skip ("Skip next"). Only honored
     /// while it is still the alarm's next occurrence; cleared once it passes.
     var skippedFireDate: Date? = nil
+    /// Pending snooze re-ring, persisted so it survives rescheduling and
+    /// relaunch. Optional so legacy JSON without the key still decodes.
+    var snoozedUntil: Date? = nil
 }
 
 /// Saved-data compatibility: every field except hour/minute is optional in the
@@ -99,6 +102,7 @@ extension Alarm {
         // Legacy alarms predate the ramp: keep them at full volume.
         alarm.gradualVolume = field(.gradualVolume, false)
         alarm.vibrateFirst = field(.vibrateFirst, alarm.vibrateFirst)
+        alarm.snoozedUntil = try? c.decodeIfPresent(Date.self, forKey: .snoozedUntil)
         self = alarm
     }
 }
