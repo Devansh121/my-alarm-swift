@@ -65,34 +65,69 @@ struct Alarm: Identifiable, Codable, Equatable {
     var gradualVolume: Bool = true
     /// In-app ringing vibrates alone for the first minute, then adds sound.
     var vibrateFirst: Bool = false
+    /// Per-weekday time overrides for repeating alarms (e.g. Fri 8:30 while
+    /// the alarm's default is 7:00). Days without an entry use hour/minute.
+    var timeOverrides: [Weekday: ClockTime] = [:]
+    /// The exact occurrence the user chose to skip ("Skip next"). Only honored
+    /// while it is still the alarm's next occurrence; cleared once it passes.
+    var skippedFireDate: Date? = nil
 }
 
-// MARK: - Tolerant decoding
-
-/// `AlarmStore.load` decodes the whole `[Alarm]` array in one shot, so a single
-/// missing key would wipe every saved alarm. Only `hour`/`minute` are required;
-/// every other field falls back to its default when absent (or malformed).
+/// Saved-data compatibility: every field except hour/minute is optional in the
+/// JSON and falls back to its default, so adding fields never wipes alarms
+/// saved by an older build. A malformed optional field also falls back rather
+/// than failing the whole `[Alarm]` decode.
 extension Alarm {
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        let defaults = Alarm(hour: 0, minute: 0)
-        self.init(
-            id: (try? c.decodeIfPresent(String.self, forKey: .id)) ?? defaults.id,
-            hour: try c.decode(Int.self, forKey: .hour),
-            minute: try c.decode(Int.self, forKey: .minute),
-            repeatDays: (try? c.decodeIfPresent(Set<Weekday>.self, forKey: .repeatDays)) ?? defaults.repeatDays,
-            label: (try? c.decodeIfPresent(String.self, forKey: .label)) ?? defaults.label,
-            tone: (try? c.decodeIfPresent(ToneSelection.self, forKey: .tone)) ?? defaults.tone,
-            snoozeEnabled: (try? c.decodeIfPresent(Bool.self, forKey: .snoozeEnabled)) ?? defaults.snoozeEnabled,
-            snoozeMinutes: (try? c.decodeIfPresent(Int.self, forKey: .snoozeMinutes)) ?? defaults.snoozeMinutes,
-            enabled: (try? c.decodeIfPresent(Bool.self, forKey: .enabled)) ?? defaults.enabled,
-            nextFireDate: (try? c.decodeIfPresent(Date.self, forKey: .nextFireDate)) ?? nil,
-            // Legacy alarms predate the ramp: keep them at full volume.
-            gradualVolume: (try? c.decodeIfPresent(Bool.self, forKey: .gradualVolume)) ?? false,
-            vibrateFirst: (try? c.decodeIfPresent(Bool.self, forKey: .vibrateFirst)) ?? false
-        )
+        let hour = try c.decode(Int.self, forKey: .hour)
+        let minute = try c.decode(Int.self, forKey: .minute)
+        var alarm = Alarm(hour: hour, minute: minute)
+        func field<T: Decodable>(_ key: CodingKeys, _ fallback: T) -> T {
+            (try? c.decodeIfPresent(T.self, forKey: key)) ?? fallback
+        }
+        alarm.id = field(.id, alarm.id)
+        alarm.repeatDays = field(.repeatDays, alarm.repeatDays)
+        alarm.label = field(.label, alarm.label)
+        alarm.tone = field(.tone, alarm.tone)
+        alarm.snoozeEnabled = field(.snoozeEnabled, alarm.snoozeEnabled)
+        alarm.snoozeMinutes = field(.snoozeMinutes, alarm.snoozeMinutes)
+        alarm.enabled = field(.enabled, alarm.enabled)
+        alarm.nextFireDate = try? c.decodeIfPresent(Date.self, forKey: .nextFireDate)
+        alarm.timeOverrides = field(.timeOverrides, alarm.timeOverrides)
+        alarm.skippedFireDate = try? c.decodeIfPresent(Date.self, forKey: .skippedFireDate)
+        // Legacy alarms predate the ramp: keep them at full volume.
+        alarm.gradualVolume = field(.gradualVolume, false)
+        alarm.vibrateFirst = field(.vibrateFirst, alarm.vibrateFirst)
+        self = alarm
+    }
+}
+
+/// A wall-clock hour/minute pair (0..23, 0..59).
+struct ClockTime: Codable, Equatable, Hashable {
+    var hour: Int
+    var minute: Int
+}
+
+/// Lets `[Weekday: X]` encode as a JSON object keyed by ISO day number
+/// (`{"5": ...}`) instead of an alternating key/value array.
+extension Weekday: CodingKeyRepresentable {
+    private struct DayKey: CodingKey {
+        let stringValue: String
+        let intValue: Int?
+        init(stringValue: String) { self.stringValue = stringValue; self.intValue = Int(stringValue) }
+        init(intValue: Int) { self.stringValue = String(intValue); self.intValue = intValue }
     }
 
+    var codingKey: CodingKey { DayKey(intValue: rawValue) }
+
+    init?<T: CodingKey>(codingKey: T) {
+        guard let raw = codingKey.intValue ?? Int(codingKey.stringValue) else { return nil }
+        self.init(rawValue: raw)
+    }
+}
+
+extension Alarm {
     /// How this alarm should ring in-app.
     var ringStyle: RingStyle {
         RingStyle(gradualVolume: gradualVolume, vibrateFirst: vibrateFirst)

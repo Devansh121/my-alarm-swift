@@ -62,4 +62,47 @@ enum AlarmFormatting {
             return bundledTones.first { $0.id == toneId }?.displayName ?? "Random"
         }
     }
+
+    // MARK: - Per-day times
+
+    /// Summarizes per-day overrides, grouping days that share a time, in ISO
+    /// order of each group's first day: e.g. "Fri 8:30 AM" or
+    /// "Sat Sun 9:00 AM, Wed 6:15 AM". "" when there are none.
+    static func overridesSummary(_ overrides: [Weekday: ClockTime]) -> String {
+        guard !overrides.isEmpty else { return "" }
+        var groups: [(time: ClockTime, days: [Weekday])] = []
+        for day in overrides.keys.sorted() {
+            let time = overrides[day]!
+            if let i = groups.firstIndex(where: { $0.time == time }) {
+                groups[i].days.append(day)
+            } else {
+                groups.append((time, [day]))
+            }
+        }
+        return groups.map { group in
+            let days = group.days.map(\.shortName).joined(separator: " ")
+            return "\(days) \(timeString(hour: group.time.hour, minute: group.time.minute))"
+        }.joined(separator: ", ")
+    }
+
+    /// Row secondary line including per-day overrides:
+    /// "Work, Weekdays · Fri 8:30 AM". Falls back to `secondaryLine(label:days:)`.
+    static func secondaryLine(label: String, days: Set<Weekday>, overrides: [Weekday: ClockTime]) -> String {
+        let base = secondaryLine(label: label, days: days)
+        let extra = overridesSummary(overrides.filter { days.contains($0.key) })
+        switch (base.isEmpty, extra.isEmpty) {
+        case (_, true): return base
+        case (true, false): return extra
+        case (false, false): return "\(base) · \(extra)"
+        }
+    }
+
+    // MARK: - Skip next
+
+    /// "Skipping Tue 7:00 AM" for a skipped occurrence, in `calendar`'s zone.
+    static func skipSummary(_ skipped: Date, calendar: Calendar) -> String {
+        let day = NextFireCalculator.isoWeekday(of: skipped, calendar: calendar)
+        let comps = calendar.dateComponents([.hour, .minute], from: skipped)
+        return "Skipping \(day.shortName) \(timeString(hour: comps.hour ?? 0, minute: comps.minute ?? 0))"
+    }
 }

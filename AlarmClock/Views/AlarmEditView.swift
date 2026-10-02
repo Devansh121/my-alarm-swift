@@ -18,6 +18,9 @@ struct AlarmEditView: View {
     @State private var snoozeMinutes: Int
     @State private var gradualVolume: Bool
     @State private var vibrateFirst: Bool
+    @State private var timeOverrides: [Weekday: ClockTime]
+    /// Carried through edits; the store drops it if the edit makes it stale.
+    private let skippedFireDate: Date?
 
     /// - Parameter alarm: nil for a brand-new alarm, otherwise the one to edit.
     init(alarm: Alarm?, store: AlarmStore) {
@@ -38,6 +41,8 @@ struct AlarmEditView: View {
         _snoozeMinutes = State(initialValue: base.snoozeMinutes)
         _gradualVolume = State(initialValue: base.gradualVolume)
         _vibrateFirst = State(initialValue: base.vibrateFirst)
+        _timeOverrides = State(initialValue: base.timeOverrides)
+        self.skippedFireDate = base.skippedFireDate
     }
 
     var body: some View {
@@ -49,6 +54,8 @@ struct AlarmEditView: View {
                         .datePickerStyle(.wheel)
                         .labelsHidden()
                         .padding(.top, 8)
+
+                    SleepHintView(alarm: scheduleDraft, now: store.now, calendar: store.calendar)
 
                     optionsList
                 }
@@ -72,11 +79,28 @@ struct AlarmEditView: View {
 
     private var optionsList: some View {
         List {
+            if !isExisting {
+                Section {
+                    WakeShortcutsView { duration in
+                        let wake = SleepMath.wakeTime(from: store.now(), adding: duration, calendar: store.calendar)
+                        time = DayTimesView.date(for: wake)
+                    }
+                }
+            }
+
             Section {
                 NavigationLink {
                     RepeatPickerView(selectedDays: $repeatDays)
                 } label: {
                     LabeledRow(title: "Repeat", value: repeatValue)
+                }
+
+                if !repeatDays.isEmpty {
+                    NavigationLink {
+                        DayTimesView(days: repeatDays, defaultTime: wheelTime, overrides: $timeOverrides)
+                    } label: {
+                        LabeledRow(title: "Times", value: timesValue)
+                    }
                 }
 
                 HStack {
@@ -132,10 +156,31 @@ struct AlarmEditView: View {
         return summary.isEmpty ? "Never" : summary
     }
 
+    // MARK: Per-day times & sleep hint
+
+    private var wheelTime: ClockTime {
+        let comps = Calendar.current.dateComponents([.hour, .minute], from: time)
+        return ClockTime(hour: comps.hour ?? 0, minute: comps.minute ?? 0)
+    }
+
+    /// The schedule-relevant parts of the alarm as currently edited.
+    private var scheduleDraft: Alarm {
+        var draft = Alarm(hour: wheelTime.hour, minute: wheelTime.minute, repeatDays: repeatDays)
+        draft.timeOverrides = timeOverrides
+        draft.timeOverrides = draft.effectiveTimeOverrides
+        draft.skippedFireDate = skippedFireDate
+        return draft
+    }
+
+    private var timesValue: String {
+        let summary = AlarmFormatting.overridesSummary(scheduleDraft.timeOverrides)
+        return summary.isEmpty ? "Same Every Day" : summary
+    }
+
     private func save() {
         let comps = Calendar.current.dateComponents([.hour, .minute], from: time)
         let trimmed = label.trimmingCharacters(in: .whitespaces)
-        let alarm = Alarm(
+        var alarm = Alarm(
             id: originalId,
             hour: comps.hour ?? 0,
             minute: comps.minute ?? 0,
@@ -148,6 +193,8 @@ struct AlarmEditView: View {
             gradualVolume: gradualVolume,
             vibrateFirst: vibrateFirst
         )
+        alarm.timeOverrides = scheduleDraft.timeOverrides
+        alarm.skippedFireDate = skippedFireDate
         store.upsert(alarm)
         dismiss()
     }
