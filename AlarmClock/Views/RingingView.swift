@@ -30,7 +30,8 @@ struct RingingView: View {
                 Spacer()
 
                 VStack(spacing: 20) {
-                    if alarm.snoozeEnabled {
+                    // Snoozing a test alarm just ends it, so offer Stop only.
+                    if alarm.snoozeEnabled, !store.isTest(alarm.id) {
                         Button {
                             store.snoozeRinging()
                         } label: {
@@ -46,7 +47,7 @@ struct RingingView: View {
                     Button {
                         store.stopRinging()
                     } label: {
-                        Text("Stop")
+                        Text(store.isTest(alarm.id) ? "Stop Test" : "Stop")
                             .font(.title3.weight(.semibold))
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)

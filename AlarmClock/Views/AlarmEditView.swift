@@ -16,6 +16,8 @@ struct AlarmEditView: View {
     @State private var tone: ToneSelection
     @State private var snoozeEnabled: Bool
     @State private var snoozeMinutes: Int
+    @State private var gradualVolume: Bool
+    @State private var vibrateFirst: Bool
     @State private var timeOverrides: [Weekday: ClockTime]
     /// Carried through edits; the store drops it if the edit makes it stale.
     private let skippedFireDate: Date?
@@ -37,6 +39,8 @@ struct AlarmEditView: View {
         _tone = State(initialValue: base.tone)
         _snoozeEnabled = State(initialValue: base.snoozeEnabled)
         _snoozeMinutes = State(initialValue: base.snoozeMinutes)
+        _gradualVolume = State(initialValue: base.gradualVolume)
+        _vibrateFirst = State(initialValue: base.vibrateFirst)
         _timeOverrides = State(initialValue: base.timeOverrides)
         self.skippedFireDate = base.skippedFireDate
     }
@@ -124,6 +128,13 @@ struct AlarmEditView: View {
                 }
             }
 
+            Section {
+                Toggle("Gradual Volume", isOn: $gradualVolume)
+                Toggle("Vibrate First", isOn: $vibrateFirst)
+            } footer: {
+                Text("Gradual Volume fades the sound in over 30 seconds. Vibrate First vibrates for a minute before the sound starts. Both apply while the alarm rings in the app; lock-screen notifications always play at full volume.")
+            }
+
             if isExisting {
                 Section {
                     Button(role: .destructive) {
@@ -178,7 +189,9 @@ struct AlarmEditView: View {
             tone: tone,
             snoozeEnabled: snoozeEnabled,
             snoozeMinutes: snoozeMinutes,
-            enabled: true
+            enabled: true,
+            gradualVolume: gradualVolume,
+            vibrateFirst: vibrateFirst
         )
         alarm.timeOverrides = scheduleDraft.timeOverrides
         alarm.skippedFireDate = skippedFireDate

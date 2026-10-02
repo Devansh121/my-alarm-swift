@@ -4,7 +4,8 @@ import SwiftUI
 struct AlarmClockApp: App {
     @StateObject private var store = AlarmStore(
         engine: NotificationAlarmEngine.shared,
-        ringer: AlarmRinger.shared
+        ringer: AlarmRinger.shared,
+        history: HistoryLog()
     )
     @Environment(\.scenePhase) private var scenePhase
 

@@ -36,6 +36,25 @@ struct AlarmListView: View {
                 }
                 .tint(.orange)
             }
+            ToolbarItem(placement: .topBarTrailing) {
+                testAlarmMenu
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                if let history = store.history {
+                    NavigationLink {
+                        HistoryView(history: history)
+                    } label: {
+                        Image(systemName: "chart.bar.xaxis")
+                    }
+                    .tint(.orange)
+                    .accessibilityLabel("History")
+                }
+            }
+        }
+        .safeAreaInset(edge: .bottom) {
+            if let test = store.testAlarm {
+                TestAlarmBanner(test: test) { store.cancelTestAlarm() }
+            }
         }
         .environment(\.editMode, $editMode)
         .sheet(item: $editingAlarm) { alarm in
@@ -79,6 +98,29 @@ struct AlarmListView: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .background(Color.black)
+    }
+
+    /// "Test my alarm": rings a real alarm in 30s with a chosen alarm's
+    /// settings (or defaults) so the user can lock the phone and check it.
+    private var testAlarmMenu: some View {
+        Menu {
+            Section("Ring a test alarm in 30 seconds") {
+                ForEach(store.alarms) { alarm in
+                    Button {
+                        store.startTestAlarm(basedOn: alarm)
+                    } label: {
+                        Text("\(AlarmFormatting.timeString(hour: alarm.hour, minute: alarm.minute)) · \(alarm.label)")
+                    }
+                }
+                Button("Default Settings") {
+                    store.startTestAlarm(basedOn: nil)
+                }
+            }
+        } label: {
+            Image(systemName: "bell.badge")
+        }
+        .tint(.orange)
+        .accessibilityLabel("Test My Alarm")
     }
 
     // MARK: Skip next
