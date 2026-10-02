@@ -77,4 +77,33 @@ final class BurstPlanTests: XCTestCase {
     func testAllIdentifiersEmptyForNonPositiveChimes() {
         XCTAssertTrue(BurstPlan.allIdentifiers(alarmId: "x", chimes: 0).isEmpty)
     }
+
+    // MARK: - snooze identifiers
+
+    private func snoozeRequest(id: String) -> FireRequest {
+        FireRequest(alarmId: id, fireAt: base, label: "Wake", toneFileName: "tone_radial.caf", isSnooze: true)
+    }
+
+    /// A snooze burst and the regular burst for the same alarm must never
+    /// share an identifier, or scheduling one replaces the other.
+    func testSnoozeIdentifiersDisjointFromRegular() {
+        let id = "550e8400-e29b-41d4-a716-446655440000"
+        let regular = Set(BurstPlan.plan(for: request(id: id), chimes: 8).map(\.identifier))
+        let snooze = Set(BurstPlan.plan(for: snoozeRequest(id: id), chimes: 8).map(\.identifier))
+        XCTAssertEqual(snooze.count, 8)
+        XCTAssertTrue(regular.isDisjoint(with: snooze))
+    }
+
+    func testSnoozeIdentifiersStripBackToAlarmId() {
+        let id = "550e8400-e29b-41d4-a716-446655440000"
+        for chime in BurstPlan.plan(for: snoozeRequest(id: id), chimes: 8) {
+            XCTAssertEqual(BurstPlan.alarmId(fromNotificationIdentifier: chime.identifier), id)
+        }
+    }
+
+    func testSnoozeAllIdentifiersMatchSnoozePlan() {
+        let id = "550e8400-e29b-41d4-a716-446655440000"
+        let planIds = BurstPlan.plan(for: snoozeRequest(id: id), chimes: 8).map(\.identifier)
+        XCTAssertEqual(BurstPlan.allIdentifiers(alarmId: id, chimes: 8, snooze: true), planIds)
+    }
 }

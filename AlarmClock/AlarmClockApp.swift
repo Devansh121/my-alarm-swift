@@ -6,12 +6,13 @@ struct AlarmClockApp: App {
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
-        // Built here rather than lazily by the scene so background launches
-        // (notification actions, the Live Activity's Stop intent) have a
-        // store even when no window ever appears.
+        // Wire the store into the delegate here, not in a view's onAppear:
+        // a lock-screen Snooze/Stop launches the app in the background with
+        // no view appearing, and the delegate would drop the action.
         let store = AlarmStore(
             engine: NotificationAlarmEngine.shared,
-            ringer: AlarmRinger.shared
+            ringer: AlarmRinger.shared,
+            history: HistoryLog()
         )
         _store = StateObject(wrappedValue: store)
         AppSurfaces.install(on: store)
@@ -23,7 +24,6 @@ struct AlarmClockApp: App {
     var body: some Scene {
         WindowGroup {
             RootView(store: store)
-                .onAppear { NotificationDelegate.shared.store = store }
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active {
                         store.refreshAndReschedule()

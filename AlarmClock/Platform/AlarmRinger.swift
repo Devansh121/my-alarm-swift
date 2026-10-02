@@ -1,3 +1,4 @@
+import AudioToolbox
 import AVFoundation
 import Foundation
 import MediaPlayer
@@ -11,6 +12,10 @@ import UIKit
 /// output volume and restores it if the user presses the hardware
 /// volume-down button. (When the alarm fires as a notification with the
 /// app dead, iOS offers no way to do this — the guard is foreground-only.)
+///
+/// Gradual volume and vibrate-first (see `RingSchedule`) are applied to the
+/// *player* volume only; the system volume is still held up by the guard.
+/// They likewise only exist in-app: notification chimes are played by iOS.
 final class AlarmRinger: RingerControl {
 
     static let shared = AlarmRinger()
@@ -21,12 +26,29 @@ final class AlarmRinger: RingerControl {
     private var volumeView: MPVolumeView?
     private var volumeFloor: Float = AlarmRinger.minimumVolume
 
+    /// Drives the ramp / vibration timeline while ringing.
+    private var ticker: Timer?
+    private var schedule = RingSchedule(style: .immediate)
+    private var ringStartedAt = Date()
+    private var lastVibrationAt: Date?
+
     /// True when the system output volume is below the audible floor.
     var volumeTooLow: Bool {
         AVAudioSession.sharedInstance().outputVolume < Self.minimumVolume
     }
 
     func start(toneFileName: String) {
+        start(toneFileName: toneFileName, style: .immediate, elapsed: 0)
+    }
+
+    func start(toneFileName: String, style: RingStyle, elapsed: TimeInterval) {
+        // A second start (e.g. takeover then a notification tap) replaces the
+        // current ring instead of stacking timers and observers.
+        stopTimeline()
+        stopVolumeGuard()
+        player?.stop()
+        player = nil
+
         let base = (toneFileName as NSString).deletingPathExtension
         guard let url = Bundle.main.url(forResource: base, withExtension: "caf") else {
             NSLog("alarm: tone \(toneFileName) missing from bundle")
@@ -38,20 +60,56 @@ final class AlarmRinger: RingerControl {
             try session.setActive(true)
             let player = try AVAudioPlayer(contentsOf: url)
             player.numberOfLoops = -1
-            player.volume = 1.0
+            schedule = RingSchedule(style: style)
+            ringStartedAt = Date().addingTimeInterval(-max(elapsed, 0))
+            // During vibrate-first the player runs at volume 0: still
+            // "playing", so the background audio mode keeps us alive.
+            player.volume = schedule.playerVolume(at: max(elapsed, 0))
             player.play()
             self.player = player
             startVolumeGuard(session: session)
+            startTimeline()
         } catch {
             NSLog("alarm: ringer failed \(error)")
         }
     }
 
     func stop() {
+        stopTimeline()
         stopVolumeGuard()
         player?.stop()
         player = nil
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+
+    // MARK: - Ramp / vibration timeline
+
+    private func startTimeline() {
+        guard schedule.isTimeVarying else { return }
+        tick()
+        let timer = Timer(timeInterval: 0.25, repeats: true) { [weak self] _ in
+            self?.tick()
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        ticker = timer
+    }
+
+    private func stopTimeline() {
+        ticker?.invalidate()
+        ticker = nil
+        lastVibrationAt = nil
+    }
+
+    private func tick() {
+        guard let player else { return }
+        let now = Date()
+        let elapsed = now.timeIntervalSince(ringStartedAt)
+        player.volume = schedule.playerVolume(at: elapsed)
+        if schedule.vibrates(at: elapsed),
+           lastVibrationAt.map({ now.timeIntervalSince($0) >= RingSchedule.vibrationInterval }) ?? true {
+            lastVibrationAt = now
+            AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
+        }
     }
 
     // MARK: - Volume guard

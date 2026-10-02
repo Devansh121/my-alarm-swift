@@ -39,13 +39,18 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     ) {
         let alarmId = BurstPlan.alarmId(fromNotificationIdentifier: response.notification.request.identifier)
         let action = response.actionIdentifier
+        // When the alarm went off (first chime), for the history log.
+        let firedAt = BurstPlan.burstStart(
+            notificationIdentifier: response.notification.request.identifier,
+            deliveredAt: response.notification.date
+        )
         DispatchQueue.main.async { [weak self] in
             guard let store = self?.store else { return }
             switch action {
             case NotificationAlarmEngine.snoozeActionId:
-                store.snoozeFromNotification(id: alarmId)
+                store.snoozeFromNotification(id: alarmId, firedAt: firedAt)
             case NotificationAlarmEngine.stopActionId:
-                store.stopFromNotification(id: alarmId)
+                store.stopFromNotification(id: alarmId, firedAt: firedAt)
             default:
                 // Tap on the notification body: open the in-app ringing screen.
                 store.onAlarmFired(id: alarmId)
