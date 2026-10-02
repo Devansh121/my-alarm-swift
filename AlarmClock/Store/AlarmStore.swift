@@ -13,6 +13,8 @@ final class AlarmStore: ObservableObject {
     let ringer: RingerControl
     let now: () -> Date
     var calendar: Calendar
+    /// Mirrors upcoming fires into the home/lock screen widgets.
+    var widgetSnapshots: WidgetSnapshotPublishing = NoopWidgetSnapshotPublisher()
 
     private let persistenceURL: URL
     private let toneRandomizer = ToneRandomizer()
@@ -185,6 +187,9 @@ final class AlarmStore: ObservableObject {
             self.pending = newPending
             self.alarms = scheduled
             self.persist()
+            self.widgetSnapshots.publish(WidgetSnapshotBuilder.build(
+                alarms: scheduled, now: self.now(), calendar: self.calendar
+            ))
         }
     }
 

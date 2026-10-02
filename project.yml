@@ -12,14 +12,38 @@ targets:
     platform: iOS
     sources:
       - path: AlarmClock
+      - path: Shared
+    dependencies:
+      - target: AlarmClockWidgets
+        embed: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.devansh.alarmclock
         DEVELOPMENT_TEAM: GBQ9HCSRG7
         CODE_SIGN_STYLE: Automatic
         INFOPLIST_FILE: AlarmClock/Info.plist
+        CODE_SIGN_ENTITLEMENTS: AlarmClock/AlarmClock.entitlements
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+  AlarmClockWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: AlarmClockWidgets
+      - path: Shared
+    dependencies:
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.devansh.alarmclock.widgets
+        DEVELOPMENT_TEAM: GBQ9HCSRG7
+        CODE_SIGN_STYLE: Automatic
+        INFOPLIST_FILE: AlarmClockWidgets/Info.plist
+        CODE_SIGN_ENTITLEMENTS: AlarmClockWidgets/AlarmClockWidgets.entitlements
+        TARGETED_DEVICE_FAMILY: "1"
+        SKIP_INSTALL: YES
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"
   AlarmClockTests:
     type: bundle.unit-test
     platform: iOS
