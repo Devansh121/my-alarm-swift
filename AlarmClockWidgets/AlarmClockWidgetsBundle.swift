@@ -5,5 +5,6 @@ import SwiftUI
 struct AlarmClockWidgetsBundle: WidgetBundle {
     var body: some Widget {
         NextAlarmWidget()
+        SnoozeLiveActivity()
     }
 }

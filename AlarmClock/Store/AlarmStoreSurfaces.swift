@@ -14,12 +14,11 @@ protocol WidgetSnapshotPublishing {
 protocol SnoozeActivityControl {
     /// Start (or update in place) the activity for a snoozed alarm.
     func start(alarmId: String, label: String, snoozedAt: Date, ringsAt: Date)
-    /// End the activity for one alarm, if any.
+    /// End the activity for one alarm, if any. Called when the snoozed alarm
+    /// re-fires, is stopped (ringing screen, notification, Live Activity),
+    /// deleted or disabled. Deliberately NOT called on every reschedule, so a
+    /// snooze that survives `refreshAndReschedule` keeps its activity.
     func end(alarmId: String)
-    /// End every activity except those for alarms that still have a pending
-    /// snooze. Called after each reschedule so stops, deletes, disables and
-    /// edits can never leave a stale activity behind.
-    func endAll(except alarmIds: Set<String>)
 }
 
 struct NoopWidgetSnapshotPublisher: WidgetSnapshotPublishing {
@@ -29,5 +28,4 @@ struct NoopWidgetSnapshotPublisher: WidgetSnapshotPublishing {
 struct NoopSnoozeActivity: SnoozeActivityControl {
     func start(alarmId: String, label: String, snoozedAt: Date, ringsAt: Date) {}
     func end(alarmId: String) {}
-    func endAll(except alarmIds: Set<String>) {}
 }

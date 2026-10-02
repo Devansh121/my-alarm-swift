@@ -15,6 +15,8 @@ final class AlarmStore: ObservableObject {
     var calendar: Calendar
     /// Mirrors upcoming fires into the home/lock screen widgets.
     var widgetSnapshots: WidgetSnapshotPublishing = NoopWidgetSnapshotPublisher()
+    /// The "snoozed" Live Activity (Lock Screen + Dynamic Island).
+    var snoozeActivity: SnoozeActivityControl = NoopSnoozeActivity()
 
     private let persistenceURL: URL
     private let toneRandomizer = ToneRandomizer()
@@ -53,6 +55,7 @@ final class AlarmStore: ObservableObject {
     }
 
     func delete(id: String) {
+        snoozeActivity.end(alarmId: id)
         alarms.removeAll { $0.id == id }
         refreshAndReschedule()
     }
@@ -60,6 +63,7 @@ final class AlarmStore: ObservableObject {
     func setEnabled(id: String, enabled: Bool) {
         guard let index = alarms.firstIndex(where: { $0.id == id }) else { return }
         alarms[index].enabled = enabled
+        if !enabled { snoozeActivity.end(alarmId: id) }
         refreshAndReschedule()
     }
 
@@ -94,6 +98,7 @@ final class AlarmStore: ObservableObject {
     func onAlarmFired(id: String) {
         runOnMain {
             guard let alarm = self.alarms.first(where: { $0.id == id }) else { return }
+            self.snoozeActivity.end(alarmId: id)
             self.ringing = alarm
             let tone = self.pending[id]?.toneFileName ?? bundledTones[0].fileName
             self.ringer.start(toneFileName: tone)
@@ -153,6 +158,7 @@ final class AlarmStore: ObservableObject {
                    } ?? false
                }) {
                 self.ringing = live
+                self.snoozeActivity.end(alarmId: live.id)
                 let tone = self.pending[live.id]?.toneFileName ?? bundledTones[0].fileName
                 self.ringer.start(toneFileName: tone)
             }
@@ -197,6 +203,7 @@ final class AlarmStore: ObservableObject {
 
     /// One-shot alarms disable themselves once stopped; then re-sync engine + UI.
     private func stopAlarm(_ alarm: Alarm) {
+        snoozeActivity.end(alarmId: alarm.id)
         if alarm.repeatDays.isEmpty {
             if let index = alarms.firstIndex(where: { $0.id == alarm.id }) {
                 alarms[index].enabled = false
@@ -217,6 +224,7 @@ final class AlarmStore: ObservableObject {
         )
         engine.schedule(request)
         pending[alarm.id] = request
+        snoozeActivity.start(alarmId: alarm.id, label: alarm.label, snoozedAt: now(), ringsAt: request.fireAt)
     }
 
     /// A one-shot alarm whose persisted fire time passed while the app was dead
