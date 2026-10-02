@@ -197,21 +197,38 @@ struct RepeatPickerView: View {
 
 // MARK: - Sound picker
 
-/// "Random" plus each bundled tone, single-select checkmark list.
+/// "Random" plus each bundled tone, single-select checkmark list. Tapping a
+/// row both selects it and plays a short preview so the user can audition it.
 struct SoundPickerView: View {
     @Binding var selection: ToneSelection
+    @StateObject private var preview = TonePreviewPlayer()
 
     var body: some View {
         List {
             Section {
-                row(title: "Random", isSelected: selection == .random) {
+                row(
+                    title: "Random",
+                    isSelected: selection == .random,
+                    previewingFileName: randomPreviewFileName
+                ) {
                     selection = .random
+                    // Audition a random tone as a taste of the surprise.
+                    if let tone = bundledTones.randomElement() {
+                        randomPreviewFileName = tone.fileName
+                        preview.play(toneFileName: tone.fileName)
+                    }
                 }
             }
             Section {
                 ForEach(bundledTones) { tone in
-                    row(title: tone.displayName, isSelected: selection == .pinned(toneId: tone.id)) {
+                    row(
+                        title: tone.displayName,
+                        isSelected: selection == .pinned(toneId: tone.id),
+                        previewingFileName: tone.fileName
+                    ) {
                         selection = .pinned(toneId: tone.id)
+                        randomPreviewFileName = nil
+                        preview.play(toneFileName: tone.fileName)
                     }
                 }
             }
@@ -221,14 +238,28 @@ struct SoundPickerView: View {
         .background(Color.black.ignoresSafeArea())
         .navigationTitle("Sound")
         .navigationBarTitleDisplayMode(.inline)
+        .onDisappear { preview.stop() }
     }
 
-    private func row(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+    /// The tone file currently being auditioned for the "Random" row (so its
+    /// speaker indicator only shows while that random taste is playing).
+    @State private var randomPreviewFileName: String?
+
+    private func row(
+        title: String,
+        isSelected: Bool,
+        previewingFileName: String?,
+        action: @escaping () -> Void
+    ) -> some View {
         Button(action: action) {
             HStack {
                 Text(title)
                     .foregroundStyle(.primary)
                 Spacer()
+                if preview.playingFileName != nil, preview.playingFileName == previewingFileName {
+                    Image(systemName: "speaker.wave.2")
+                        .foregroundStyle(.orange)
+                }
                 if isSelected {
                     Image(systemName: "checkmark")
                         .foregroundStyle(.orange)
