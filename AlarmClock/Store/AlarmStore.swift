@@ -333,6 +333,7 @@ final class AlarmStore: ObservableObject {
             self.pending = newPending
             self.alarms = scheduled
             self.persist()
+            self.snoozeActivity.endExpired(now: self.now())
             self.widgetSnapshots.publish(WidgetSnapshotBuilder.build(
                 alarms: scheduled, now: self.now(), calendar: self.calendar
             ))

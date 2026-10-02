@@ -8,7 +8,7 @@ import ActivityKit
 /// Each activity's `staleDate` is the re-ring time: if the app is not running
 /// when the snooze elapses, the system marks it stale and the view switches to
 /// a static "Snooze over" state instead of a countdown stuck at zero, and the
-/// next app launch ends it (`endExpired`).
+/// next launch or return to foreground ends it (`endExpired`).
 final class LiveSnoozeActivityController: SnoozeActivityControl {
 
     func start(alarmId: String, label: String, snoozedAt: Date, ringsAt: Date) {

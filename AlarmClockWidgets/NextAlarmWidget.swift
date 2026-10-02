@@ -132,12 +132,12 @@ struct NextAlarmWidgetView: View {
                         .foregroundStyle(.secondary)
                     ForEach(upcoming.dropFirst().prefix(2), id: \.self) { item in
                         VStack(alignment: .leading, spacing: 1) {
-                            HStack(spacing: 4) {
-                                Text(item.fireDate, format: .dateTime.weekday(.abbreviated))
-                                    .foregroundStyle(.secondary)
-                                Text(item.fireDate, style: .time)
-                            }
-                            .font(.subheadline)
+                            // One static string: a live `Text(_:style: .time)` beside
+                            // the weekday collapses to zero width in this column.
+                            Text(item.fireDate, format: .dateTime.weekday(.abbreviated).hour().minute())
+                                .font(.subheadline)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
                             Text(item.label)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)

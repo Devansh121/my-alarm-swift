@@ -19,6 +19,10 @@ protocol SnoozeActivityControl {
     /// deleted or disabled. Deliberately NOT called on every reschedule, so a
     /// snooze that survives `refreshAndReschedule` keeps its activity.
     func end(alarmId: String)
+    /// End every activity whose re-ring time has passed. A snooze that
+    /// re-fires while the app is backgrounded can't end its own activity, so
+    /// this runs on each reschedule (including every return to foreground).
+    func endExpired(now: Date)
 }
 
 struct NoopWidgetSnapshotPublisher: WidgetSnapshotPublishing {
@@ -28,4 +32,5 @@ struct NoopWidgetSnapshotPublisher: WidgetSnapshotPublishing {
 struct NoopSnoozeActivity: SnoozeActivityControl {
     func start(alarmId: String, label: String, snoozedAt: Date, ringsAt: Date) {}
     func end(alarmId: String) {}
+    func endExpired(now: Date) {}
 }

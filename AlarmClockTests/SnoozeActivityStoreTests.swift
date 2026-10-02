@@ -29,6 +29,10 @@ private final class RecordingSnoozeActivity: SnoozeActivityControl {
         ended.append(alarmId)
         active.removeValue(forKey: alarmId)
     }
+
+    func endExpired(now: Date) {
+        for (id, ringsAt) in active where ringsAt <= now { end(alarmId: id) }
+    }
 }
 
 /// The store drives the snooze Live Activity: start on snooze, end on re-fire,
@@ -163,5 +167,17 @@ final class SnoozeActivityStoreTests: XCTestCase {
         store.upsert(Alarm(id: "other", hour: 6, minute: 0))
         XCTAssertTrue(activity.ended.isEmpty)
         XCTAssertNotNil(activity.active["a1"])
+    }
+
+    func testForegroundAfterBackgroundReFireEndsStaleActivity() {
+        let store = makeRingingStore(days: [.sunday])
+        store.snoozeRinging()
+        let ringsAt = try! XCTUnwrap(activity.active["a1"])
+        // The snooze re-fired while backgrounded (no onAlarmFired); the app
+        // comes back well after its ring window.
+        clock = ringsAt.addingTimeInterval(10 * 60)
+        store.refreshAndReschedule()
+        XCTAssertEqual(activity.ended, ["a1"])
+        XCTAssertNil(activity.active["a1"])
     }
 }
