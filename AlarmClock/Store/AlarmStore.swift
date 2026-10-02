@@ -58,6 +58,7 @@ final class AlarmStore: ObservableObject {
     func setEnabled(id: String, enabled: Bool) {
         guard let index = alarms.firstIndex(where: { $0.id == id }) else { return }
         alarms[index].enabled = enabled
+        if !enabled { alarms[index].snoozedUntil = nil }
         refreshAndReschedule()
     }
 
@@ -69,6 +70,11 @@ final class AlarmStore: ObservableObject {
             self.ringing = alarm
             let tone = self.pending[id]?.toneFileName ?? bundledTones[0].fileName
             self.ringer.start(toneFileName: tone)
+            if let index = self.alarms.firstIndex(where: { $0.id == id }),
+               self.alarms[index].snoozedUntil != nil {
+                self.alarms[index].snoozedUntil = nil
+                self.persist()
+            }
         }
     }
 
@@ -94,6 +100,7 @@ final class AlarmStore: ObservableObject {
         runOnMain {
             guard let alarm = self.alarms.first(where: { $0.id == id }) else { return }
             guard alarm.snoozeEnabled else { return }
+            self.silenceIfRinging(id: id)
             self.scheduleSnooze(alarm)
         }
     }
@@ -101,8 +108,18 @@ final class AlarmStore: ObservableObject {
     func stopFromNotification(id: String) {
         runOnMain {
             guard let alarm = self.alarms.first(where: { $0.id == id }) else { return }
+            self.silenceIfRinging(id: id)
             self.stopAlarm(alarm)
         }
+    }
+
+    /// A lock-screen action can arrive right after a background launch whose
+    /// refresh took the alarm over in-app; the action is the user's answer to
+    /// that ring, so the in-app ringer must not keep playing.
+    private func silenceIfRinging(id: String) {
+        guard ringing?.id == id else { return }
+        ringer.stop()
+        ringing = nil
     }
 
     // MARK: - Sync
@@ -117,10 +134,11 @@ final class AlarmStore: ObservableObject {
             // An alarm that fired within the ring window is ringing RIGHT NOW —
             // opening the app must take over with the in-app ringing screen,
             // not silently disable it as "missed".
+            // A snooze is the alarm's most recent (or upcoming) fire, so it
+            // takes precedence over the regular fire it replaced.
             if self.ringing == nil,
                let live = self.alarms.first(where: { alarm in
-                   alarm.enabled &&
-                   alarm.nextFireDate.map {
+                   (alarm.snoozedUntil ?? (alarm.enabled ? alarm.nextFireDate : nil)).map {
                        $0 <= self.now() && self.now() < $0 + Self.ringWindow
                    } ?? false
                }) {
@@ -156,6 +174,32 @@ final class AlarmStore: ObservableObject {
                 scheduled[index].nextFireDate = fireAt
             }
 
+            // A pending snooze is the user's explicit request, scheduled
+            // alongside the regular next fire and independent of `enabled`
+            // (a missed one-shot may be snoozed from the lock screen after
+            // reconciliation disabled it). Past snoozes are dropped.
+            for index in scheduled.indices {
+                guard let until = scheduled[index].snoozedUntil else { continue }
+                guard until > self.now() else {
+                    scheduled[index].snoozedUntil = nil
+                    continue
+                }
+                let alarm = scheduled[index]
+                let knownTone = self.pending[alarm.id].flatMap { $0.isSnooze ? $0.toneFileName : nil }
+                let snooze = FireRequest(
+                    alarmId: alarm.id,
+                    fireAt: until,
+                    label: alarm.label,
+                    toneFileName: knownTone
+                        ?? self.toneRandomizer.resolve(selection: alarm.tone, lastToneId: nil).fileName,
+                    isSnooze: true
+                )
+                self.engine.schedule(snooze)
+                if newPending[alarm.id].map({ until < $0.fireAt }) ?? true {
+                    newPending[alarm.id] = snooze
+                }
+            }
+
             self.pending = newPending
             self.alarms = scheduled
             self.persist()
@@ -171,11 +215,20 @@ final class AlarmStore: ObservableObject {
                 alarms[index].enabled = false
             }
         }
+        // Stop ends any snooze, and the fire just handled is done — without
+        // clearing it a repeating alarm stopped inside its ring window would
+        // be taken over again by the refresh below.
+        if let index = alarms.firstIndex(where: { $0.id == alarm.id }) {
+            alarms[index].snoozedUntil = nil
+            alarms[index].nextFireDate = nil
+        }
         refreshAndReschedule()
     }
 
     /// Re-ring in `snoozeMinutes` using the pending request's tone (or first bundled).
+    /// Persisted as `snoozedUntil`; refreshAndReschedule schedules the request.
     private func scheduleSnooze(_ alarm: Alarm) {
+        guard let index = alarms.firstIndex(where: { $0.id == alarm.id }) else { return }
         let tone = pending[alarm.id]?.toneFileName ?? bundledTones[0].fileName
         let request = FireRequest(
             alarmId: alarm.id,
@@ -184,8 +237,9 @@ final class AlarmStore: ObservableObject {
             toneFileName: tone,
             isSnooze: true
         )
-        engine.schedule(request)
         pending[alarm.id] = request
+        alarms[index].snoozedUntil = request.fireAt
+        refreshAndReschedule()
     }
 
     /// A one-shot alarm whose persisted fire time passed while the app was dead
@@ -199,7 +253,7 @@ final class AlarmStore: ObservableObject {
             if alarm.enabled,
                alarm.repeatDays.isEmpty,
                alarm.id != ringing?.id,
-               let stored = alarm.nextFireDate,
+               let stored = alarm.snoozedUntil ?? alarm.nextFireDate,
                stored + Self.ringWindow <= currentNow {
                 var disabled = alarm
                 disabled.enabled = false

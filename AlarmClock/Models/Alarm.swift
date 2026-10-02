@@ -59,6 +59,9 @@ struct Alarm: Identifiable, Codable, Equatable {
     var enabled: Bool = true
     /// Last scheduled fire, persisted for missed-alarm reconciliation.
     var nextFireDate: Date? = nil
+    /// Pending snooze re-ring, persisted so it survives rescheduling and
+    /// relaunch. Optional so legacy JSON without the key still decodes.
+    var snoozedUntil: Date? = nil
 }
 
 /// A concrete "ring at this moment" order handed to the notification engine.

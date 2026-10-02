@@ -210,12 +210,25 @@ final class AlarmStoreTests: XCTestCase {
         XCTAssertTrue(engine.pending.isEmpty)
     }
 
-    func testStopFromNotificationDoesNotTouchRingingState() {
+    /// A lock-screen Stop can arrive right after a background launch whose
+    /// refresh took the alarm over in-app — it must silence that ring.
+    func testStopFromNotificationSilencesThatAlarmIfRinging() {
         let ringer = RecordingRinger()
         let store = makeStore(ringer: ringer)
         store.upsert(alarm("a1", hour: 18, tone: .pinned(toneId: "waves")))
         store.onAlarmFired(id: "a1")
         store.stopFromNotification(id: "a1")
+        XCTAssertNil(store.ringing)
+        XCTAssertNil(ringer.playing)
+    }
+
+    func testStopFromNotificationLeavesOtherRingingAlarmAlone() {
+        let ringer = RecordingRinger()
+        let store = makeStore(ringer: ringer)
+        store.upsert(alarm("a1", hour: 18, tone: .pinned(toneId: "waves")))
+        store.upsert(alarm("a2", hour: 19))
+        store.onAlarmFired(id: "a1")
+        store.stopFromNotification(id: "a2")
         XCTAssertEqual(store.ringing?.id, "a1")
         XCTAssertEqual(ringer.playing, "tone_waves.caf")
     }
