@@ -58,6 +58,9 @@ final class AlarmStore: ObservableObject {
     }
 
     func delete(id: String) {
+        if let alarm = alarms.first(where: { $0.id == id }), alarm.snoozedUntil != nil {
+            record(.stopped, alarm)
+        }
         alarms.removeAll { $0.id == id }
         refreshAndReschedule()
     }
@@ -65,7 +68,11 @@ final class AlarmStore: ObservableObject {
     func setEnabled(id: String, enabled: Bool) {
         guard let index = alarms.firstIndex(where: { $0.id == id }) else { return }
         alarms[index].enabled = enabled
-        if !enabled { alarms[index].snoozedUntil = nil }
+        if !enabled, alarms[index].snoozedUntil != nil {
+            // Ends the snoozed morning in History rather than leaving it open.
+            record(.stopped, alarms[index])
+            alarms[index].snoozedUntil = nil
+        }
         refreshAndReschedule()
     }
 

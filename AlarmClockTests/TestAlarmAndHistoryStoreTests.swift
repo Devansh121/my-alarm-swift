@@ -238,6 +238,31 @@ final class TestAlarmAndHistoryStoreTests: XCTestCase {
         XCTAssertEqual(history.events.map(\.kind), [.fired])
     }
 
+    func testDisablingSnoozedAlarmRecordsStop() {
+        let store = makeStore()
+        store.upsert(savedAlarm())
+        store.onAlarmFired(id: "a1")
+        store.snoozeRinging()
+        store.setEnabled(id: "a1", enabled: false)
+        XCTAssertEqual(history.events.map(\.kind), [.fired, .snoozed, .stopped])
+    }
+
+    func testDeletingSnoozedAlarmRecordsStop() {
+        let store = makeStore()
+        store.upsert(savedAlarm())
+        store.onAlarmFired(id: "a1")
+        store.snoozeRinging()
+        store.delete(id: "a1")
+        XCTAssertEqual(history.events.map(\.kind), [.fired, .snoozed, .stopped])
+    }
+
+    func testDisablingUnsnoozedAlarmRecordsNothing() {
+        let store = makeStore()
+        store.upsert(savedAlarm())
+        store.setEnabled(id: "a1", enabled: false)
+        XCTAssertTrue(history.events.isEmpty)
+    }
+
     func testSnoozedFromLockScreenThenIgnoredIsNotMissed() {
         var a = savedAlarm()
         a.repeatDays = [.monday]
