@@ -4,6 +4,7 @@ import SwiftUI
 /// background, Edit / + toolbar, and big thin time rows over hairline separators.
 struct AlarmListView: View {
     @ObservedObject var store: AlarmStore
+    var watchSync: WatchSyncCoordinator? = nil
 
     @State private var editingAlarm: Alarm?
     @State private var isPresentingNew = false
@@ -48,6 +49,17 @@ struct AlarmListView: View {
                     }
                     .tint(.orange)
                     .accessibilityLabel("History")
+                }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                if let watchSync {
+                    NavigationLink {
+                        WatchSyncView(connection: GarminConnection.shared, sync: watchSync)
+                    } label: {
+                        Image(systemName: "applewatch.radiowaves.left.and.right")
+                    }
+                    .tint(.orange)
+                    .accessibilityLabel("Garmin Watch")
                 }
             }
         }

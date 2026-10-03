@@ -74,6 +74,10 @@ struct Alarm: Identifiable, Codable, Equatable {
     /// Pending snooze re-ring, persisted so it survives rescheduling and
     /// relaunch. Optional so legacy JSON without the key still decodes.
     var snoozedUntil: Date? = nil
+    /// When the user last changed this alarm, on the phone or the watch.
+    /// Garmin sync resolves conflicting edits with it (last writer wins).
+    /// Nil for alarms not edited since sync was added.
+    var updatedAt: Date? = nil
 }
 
 /// Saved-data compatibility: every field except hour/minute is optional in the
@@ -103,6 +107,7 @@ extension Alarm {
         alarm.gradualVolume = field(.gradualVolume, false)
         alarm.vibrateFirst = field(.vibrateFirst, alarm.vibrateFirst)
         alarm.snoozedUntil = try? c.decodeIfPresent(Date.self, forKey: .snoozedUntil)
+        alarm.updatedAt = try? c.decodeIfPresent(Date.self, forKey: .updatedAt)
         self = alarm
     }
 }

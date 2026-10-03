@@ -19,6 +19,15 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>
+		<string>bluetooth-central</string>
+	</array>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Alarm uses Bluetooth to sync your alarms with your Garmin watch.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>Alarm uses Bluetooth to sync your alarms with your Garmin watch.</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>gcm-ciq</string>
 	</array>
 	<key>CFBundleURLTypes</key>
 	<array>
@@ -28,6 +37,14 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>alarmclock</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.devansh.alarmclock.connectiq</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>alarmclock-ciq</string>
 			</array>
 		</dict>
 	</array>

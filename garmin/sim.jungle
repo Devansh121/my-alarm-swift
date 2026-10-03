@@ -1,0 +1,7 @@
+# Simulator build: no radio. The simulator can only reach an Android phone
+# (over adb), so FakePhone plays the iPhone app. Used by `./build.sh run`
+# and `./build.sh test`.
+project.manifest = manifest.xml
+base.sourcePath = source;test
+base.resourcePath = resources
+base.excludeAnnotations = radio

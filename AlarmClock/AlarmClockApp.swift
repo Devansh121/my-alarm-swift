@@ -3,6 +3,7 @@ import SwiftUI
 @main
 struct AlarmClockApp: App {
     @StateObject private var store: AlarmStore
+    @StateObject private var watchSync: WatchSyncCoordinator
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
@@ -16,6 +17,12 @@ struct AlarmClockApp: App {
         )
         _store = StateObject(wrappedValue: store)
         AppSurfaces.install(on: store)
+        // Created at launch, not on a screen: a Bluetooth background relaunch
+        // delivers watch edits with no view on screen.
+        _watchSync = StateObject(wrappedValue: WatchSyncCoordinator(
+            store: store, transport: GarminConnection.shared
+        ))
+        GarminConnection.shared.startIfPaired()
         NotificationDelegate.shared.store = store
         NotificationDelegate.shared.install()
         NotificationAlarmEngine.shared.requestAuthorization()
@@ -23,15 +30,18 @@ struct AlarmClockApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView(store: store)
+            RootView(store: store, watchSync: watchSync)
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active {
                         store.refreshAndReschedule()
                     }
                 }
-                // Widget / Live Activity taps deep-link here. The alarm list
-                // is the root screen, so opening the app is all they need.
-                .onOpenURL { _ in }
+                // Garmin Connect returns the chosen watches here. Widget /
+                // Live Activity taps also deep-link here; the alarm list is
+                // the root screen, so opening the app is all they need.
+                .onOpenURL { url in
+                    GarminConnection.shared.handle(url: url)
+                }
         }
     }
 }
