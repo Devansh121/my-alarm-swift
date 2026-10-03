@@ -4,14 +4,16 @@ import SwiftUI
 /// whenever the store reports an alarm firing. Locked to dark mode to match Clock.
 struct RootView: View {
     @ObservedObject var store: AlarmStore
+    var watchSync: WatchSyncCoordinator?
 
-    init(store: AlarmStore) {
+    init(store: AlarmStore, watchSync: WatchSyncCoordinator? = nil) {
         self.store = store
+        self.watchSync = watchSync
     }
 
     var body: some View {
         NavigationStack {
-            AlarmListView(store: store)
+            AlarmListView(store: store, watchSync: watchSync)
         }
         .preferredColorScheme(.dark)
         .fullScreenCover(isPresented: ringingBinding) {

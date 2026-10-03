@@ -6,6 +6,10 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.10"
+packages:
+  ConnectIQ:
+    url: https://github.com/garmin/connectiq-companion-app-sdk-ios
+    exactVersion: 1.8.0
 targets:
   AlarmClock:
     type: application
@@ -16,9 +20,12 @@ targets:
     dependencies:
       - target: AlarmClockWidgets
         embed: true
+      - package: ConnectIQ
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.devansh.alarmclock
+        # The Connect IQ SDK uses Objective-C categories internally.
+        OTHER_LDFLAGS: "$(inherited) -ObjC"
         DEVELOPMENT_TEAM: GBQ9HCSRG7
         CODE_SIGN_STYLE: Automatic
         INFOPLIST_FILE: AlarmClock/Info.plist
