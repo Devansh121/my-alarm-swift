@@ -110,6 +110,9 @@ struct NextAlarmWidgetView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .containerBackground(Color.black, for: .widget)
+        // The background is always black, so default-colored text must
+        // render for dark even when the device is in light mode.
+        .environment(\.colorScheme, .dark)
     }
 
     private var medium: some View {
@@ -150,6 +153,9 @@ struct NextAlarmWidgetView: View {
             }
         }
         .containerBackground(Color.black, for: .widget)
+        // The background is always black, so default-colored text must
+        // render for dark even when the device is in light mode.
+        .environment(\.colorScheme, .dark)
     }
 
     private var header: some View {
