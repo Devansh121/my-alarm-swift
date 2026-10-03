@@ -15,6 +15,7 @@ struct AlarmClockApp: App {
             history: HistoryLog()
         )
         _store = StateObject(wrappedValue: store)
+        AppSurfaces.install(on: store)
         NotificationDelegate.shared.store = store
         NotificationDelegate.shared.install()
         NotificationAlarmEngine.shared.requestAuthorization()
@@ -28,6 +29,9 @@ struct AlarmClockApp: App {
                         store.refreshAndReschedule()
                     }
                 }
+                // Widget / Live Activity taps deep-link here. The alarm list
+                // is the root screen, so opening the app is all they need.
+                .onOpenURL { _ in }
         }
     }
 }

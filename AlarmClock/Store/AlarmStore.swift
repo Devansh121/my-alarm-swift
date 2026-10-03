@@ -16,6 +16,10 @@ final class AlarmStore: ObservableObject {
     let ringer: RingerControl
     let now: () -> Date
     var calendar: Calendar
+    /// Mirrors upcoming fires into the home/lock screen widgets.
+    var widgetSnapshots: WidgetSnapshotPublishing = NoopWidgetSnapshotPublisher()
+    /// The "snoozed" Live Activity (Lock Screen + Dynamic Island).
+    var snoozeActivity: SnoozeActivityControl = NoopSnoozeActivity()
     /// Event log for the History screen; nil disables recording (tests).
     let history: HistoryLog?
 
@@ -58,6 +62,7 @@ final class AlarmStore: ObservableObject {
     }
 
     func delete(id: String) {
+        snoozeActivity.end(alarmId: id)
         if let alarm = alarms.first(where: { $0.id == id }), alarm.snoozedUntil != nil {
             record(.stopped, alarm)
         }
@@ -73,6 +78,7 @@ final class AlarmStore: ObservableObject {
             record(.stopped, alarms[index])
             alarms[index].snoozedUntil = nil
         }
+        if !enabled { snoozeActivity.end(alarmId: id) }
         refreshAndReschedule()
     }
 
@@ -110,6 +116,7 @@ final class AlarmStore: ObservableObject {
             // Already ringing in-app (e.g. ring-on-open takeover, then the
             // notification tap arrives): don't restart the ring timeline.
             guard self.ringing?.id != id else { return }
+            self.snoozeActivity.end(alarmId: id)
             self.ringing = alarm
             let request = self.request(forAlarmId: id)
             let tone = request?.toneFileName ?? bundledTones[0].fileName
@@ -257,6 +264,7 @@ final class AlarmStore: ObservableObject {
                    } ?? false
                }) {
                 self.ringing = live
+                self.snoozeActivity.end(alarmId: live.id)
                 let tone = self.pending[live.id]?.toneFileName ?? bundledTones[0].fileName
                 let liveFiredAt = live.snoozedUntil ?? live.nextFireDate
                 self.startRinger(for: live, tone: tone, firedAt: liveFiredAt)
@@ -325,6 +333,10 @@ final class AlarmStore: ObservableObject {
             self.pending = newPending
             self.alarms = scheduled
             self.persist()
+            self.snoozeActivity.endExpired(now: self.now())
+            self.widgetSnapshots.publish(WidgetSnapshotBuilder.build(
+                alarms: scheduled, now: self.now(), calendar: self.calendar
+            ))
         }
     }
 
@@ -427,6 +439,7 @@ final class AlarmStore: ObservableObject {
 
     /// One-shot alarms disable themselves once stopped; then re-sync engine + UI.
     private func stopAlarm(_ alarm: Alarm) {
+        snoozeActivity.end(alarmId: alarm.id)
         if alarm.repeatDays.isEmpty {
             if let index = alarms.firstIndex(where: { $0.id == alarm.id }) {
                 alarms[index].enabled = false
@@ -455,6 +468,7 @@ final class AlarmStore: ObservableObject {
             isSnooze: true
         )
         pending[alarm.id] = request
+        snoozeActivity.start(alarmId: alarm.id, label: alarm.label, snoozedAt: now(), ringsAt: request.fireAt)
         alarms[index].snoozedUntil = request.fireAt
         refreshAndReschedule()
     }
