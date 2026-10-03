@@ -71,3 +71,13 @@ function testMomentUsesIsoWeekday(logger as Test.Logger) as Boolean {
     Test.assert(names.find(text.substring(0, 3)) != null);
     return true;
 }
+
+(:test)
+function testPickerValuesTo24Hour(logger as Test.Logger) as Boolean {
+    Test.assertEqual(TimePicker.toHour([7, 30], true), 7);
+    Test.assertEqual(TimePicker.toHour([12, 0, 0], false), 0);    // 12 AM
+    Test.assertEqual(TimePicker.toHour([12, 0, 1], false), 12);   // 12 PM
+    Test.assertEqual(TimePicker.toHour([7, 45, 1], false), 19);
+    Test.assertEqual(TimePicker.toHour([7, 45, 0], false), 7);
+    return true;
+}

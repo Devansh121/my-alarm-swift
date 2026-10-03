@@ -19,8 +19,20 @@ KEY=${CIQ_KEY:-$HOME/.Garmin/developer_key.der}
 [ -f "$KEY" ] || { echo "developer key $KEY not found, see README" >&2; exit 1; }
 mkdir -p bin
 
+# Starts the simulator if it isn't running. FRESH_SIM=1 restarts it with
+# empty device state: a simulator whose /tmp state went stale (after killed
+# runs) shows a blank error dialog and never loads an app.
 simulator() {
-    pgrep -f "$SDK/bin/simulator" >/dev/null || { "$SDK/bin/connectiq" & sleep 6; }
+    if [ "${FRESH_SIM:-0}" = 1 ]; then
+        pkill -x simulator || true
+        sleep 1
+        local state="$PWD/bin/simstate"
+        rm -rf "$state" && mkdir -p "$state"
+        (cd "$SDK/bin" && TMPDIR="$state" exec ./simulator) </dev/null >/dev/null 2>&1 &
+        sleep 7
+    else
+        pgrep -x simulator >/dev/null || { "$SDK/bin/connectiq" </dev/null >/dev/null 2>&1 & sleep 7; }
+    fi
 }
 
 case "${1:-}" in

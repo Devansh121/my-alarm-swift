@@ -3,6 +3,25 @@
     <iq:application id="0d09aa3dace24cae94fc19b901ed1374" type="watch-app" name="@Strings.AppName" entry="AlarmApp" launcherIcon="@Drawables.LauncherIcon" minApiLevel="3.2.0">
         <iq:products>
             <iq:product id="fr965"/>
+            <iq:product id="fr265"/>
+            <iq:product id="fr265s"/>
+            <iq:product id="fr955"/>
+            <iq:product id="fr970"/>
+            <iq:product id="fr165"/>
+            <iq:product id="fenix7"/>
+            <iq:product id="fenix7pro"/>
+            <iq:product id="fenix7s"/>
+            <iq:product id="fenix7x"/>
+            <iq:product id="epix2"/>
+            <iq:product id="epix2pro47mm"/>
+            <iq:product id="fenix847mm"/>
+            <iq:product id="fenix8solar47mm"/>
+            <iq:product id="venu3"/>
+            <iq:product id="venu3s"/>
+            <iq:product id="vivoactive5"/>
+            <iq:product id="vivoactive6"/>
+            <iq:product id="venu441mm"/>
+            <iq:product id="venu445mm"/>
         </iq:products>
         <iq:permissions>
             <iq:uses-permission id="Background"/>

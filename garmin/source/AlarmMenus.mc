@@ -96,7 +96,7 @@ class AlarmDetailMenu extends WatchUi.Menu2 {
         addItem(new WatchUi.MenuItem("Snooze", Fmt.snooze(alarm), :snooze, null));
         var ov = Fmt.overrides(alarm, is24);
         if (ov != null) {
-            addItem(new WatchUi.MenuItem("Per-day times", ov + " (edit on phone)", :ov, null));
+            addItem(new WatchUi.MenuItem("Per-day times", ov, :ov, null));
         }
         if (alarm["e"]) {
             if (alarm["sk"] != null) {
@@ -143,6 +143,10 @@ class AlarmDetailDelegate extends WatchUi.Menu2InputDelegate {
             Controller.edit("skip", alarmId, null);
         } else if (id == :unskip) {
             Controller.edit("unskip", alarmId, null);
+        } else if (id == :ov) {
+            if (WatchUi has :showToast) {
+                WatchUi.showToast("Edit on phone", null);
+            }
         } else if (id == :del) {
             WatchUi.pushView(new WatchUi.Confirmation("Delete alarm?"), new DeleteDelegate(alarmId),
                              WatchUi.SLIDE_IMMEDIATE);
