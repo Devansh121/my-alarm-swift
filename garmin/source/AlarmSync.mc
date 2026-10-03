@@ -118,6 +118,16 @@ module AlarmSync {
         return true;
     }
 
+    // Background path: merge a snapshot into the stored state.
+    function storeSnapshot(msg, now as Number) as Boolean {
+        var state = load();
+        if (!applySnapshot(state, msg, now)) {
+            return false;
+        }
+        save(state);
+        return true;
+    }
+
     // A wire alarm with known types only, or null if it has no usable id/time.
     function cleanAlarm(raw) as Dictionary or Null {
         if (!(raw instanceof Dictionary)) {

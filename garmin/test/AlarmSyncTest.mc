@@ -215,3 +215,22 @@ function testValueCoercion(logger as Test.Logger) as Boolean {
     Test.assert(AlarmSync.bool("yes") == null);
     return true;
 }
+
+(:test)
+function testBackgroundStoreKeepsUnackedEdits(logger as Test.Logger) as Boolean {
+    // The app queued two edits, then closed; a snapshot acking only the
+    // first arrives in the background.
+    var state = AlarmSync.newState();
+    var first = AlarmSync.addOp(state, "en", "a1", {"e" => false}, 1);
+    AlarmSync.addOp(state, "del", "a2", null, 2);
+    AlarmSync.save(state);
+    Test.assert(AlarmSync.storeSnapshot(SyncFixtures.snap([first["oid"]]), 50));
+    Test.assert(!AlarmSync.storeSnapshot("not a snapshot", 60));
+    var stored = AlarmSync.load();
+    Test.assertEqual((stored["alarms"] as Array).size(), 2);
+    Test.assertEqual((stored["outbox"] as Array).size(), 1);
+    Test.assertEqual(stored["syncedAt"], 50);
+    Test.assertEqual(AlarmSync.view(stored).size(), 1);   // a2 still shown as deleted
+    AlarmSync.save(AlarmSync.newState());
+    return true;
+}

@@ -41,10 +41,7 @@ class SyncServiceDelegate extends System.ServiceDelegate {
     }
 
     function onPhoneAppMessage(msg as Communications.PhoneAppMessage) as Void {
-        var state = AlarmSync.load();
-        if (AlarmSync.applySnapshot(state, msg.data, Time.now().value())) {
-            AlarmSync.save(state);
-        }
+        AlarmSync.storeSnapshot(msg.data, Time.now().value());
         Background.exit(null);
     }
 }
