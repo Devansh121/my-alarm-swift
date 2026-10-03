@@ -88,10 +88,10 @@ one alarm all apply in order. Phone-side edits set `u` to the phone's clock.
 For each op, in order:
 
 1. The alarm exists and `u > at`: the phone has a newer edit. The op is rejected.
-2. The alarm was deleted on the phone (tombstone) at or after `at`: rejected.
+2. The alarm was deleted on the phone (tombstone) after `at`: rejected.
    A `put` made on the watch **after** the phone deleted the alarm recreates it.
 3. `en`, `skip`, `unskip`, `del` on an unknown id: nothing to do.
-4. A `put` with an invalid value (hour 25, empty label, day 9, …) is rejected whole.
+4. A `put` with an invalid value (hour 25, empty label, day 9, …) is rejected whole. Labels are trimmed and cut to 40 characters.
 5. Otherwise the op is applied.
 
 Every processed op is acked, applied or not. The next `snap` shows the result,

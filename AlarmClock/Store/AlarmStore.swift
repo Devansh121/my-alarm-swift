@@ -50,7 +50,11 @@ final class AlarmStore: ObservableObject {
 
     // MARK: - CRUD
 
-    func upsert(_ alarm: Alarm) {
+    /// - Parameter editedAt: when the edit was made; defaults to now. Watch
+    ///   edits pass the time they were made on the watch (see WatchSyncRules).
+    func upsert(_ alarm: Alarm, editedAt: Date? = nil) {
+        var alarm = alarm
+        alarm.updatedAt = editedAt ?? now()
         var next = alarms
         if let index = next.firstIndex(where: { $0.id == alarm.id }) {
             next[index] = alarm
@@ -70,9 +74,10 @@ final class AlarmStore: ObservableObject {
         refreshAndReschedule()
     }
 
-    func setEnabled(id: String, enabled: Bool) {
+    func setEnabled(id: String, enabled: Bool, editedAt: Date? = nil) {
         guard let index = alarms.firstIndex(where: { $0.id == id }) else { return }
         alarms[index].enabled = enabled
+        alarms[index].updatedAt = editedAt ?? now()
         if !enabled, alarms[index].snoozedUntil != nil {
             // Ends the snoozed morning in History rather than leaving it open.
             record(.stopped, alarms[index])
@@ -87,8 +92,9 @@ final class AlarmStore: ObservableObject {
     /// Skips only the next occurrence of a repeating alarm; it resumes on its
     /// own afterwards. For a one-shot there is nothing after the next
     /// occurrence, so skipping it is the same as turning it off.
-    func skipNext(id: String) {
+    func skipNext(id: String, editedAt: Date? = nil) {
         guard let index = alarms.firstIndex(where: { $0.id == id }), alarms[index].enabled else { return }
+        alarms[index].updatedAt = editedAt ?? now()
         if alarms[index].repeatDays.isEmpty {
             alarms[index].enabled = false
         } else {
@@ -102,9 +108,10 @@ final class AlarmStore: ObservableObject {
     }
 
     /// Undoes a pending "skip next".
-    func cancelSkip(id: String) {
+    func cancelSkip(id: String, editedAt: Date? = nil) {
         guard let index = alarms.firstIndex(where: { $0.id == id }) else { return }
         alarms[index].skippedFireDate = nil
+        alarms[index].updatedAt = editedAt ?? now()
         refreshAndReschedule()
     }
 
@@ -443,6 +450,7 @@ final class AlarmStore: ObservableObject {
         if alarm.repeatDays.isEmpty {
             if let index = alarms.firstIndex(where: { $0.id == alarm.id }) {
                 alarms[index].enabled = false
+                alarms[index].updatedAt = now()
             }
         }
         // Stop ends any snooze, and the fire just handled is done — without
@@ -488,6 +496,7 @@ final class AlarmStore: ObservableObject {
                stored + Self.ringWindow <= currentNow {
                 var disabled = alarm
                 disabled.enabled = false
+                disabled.updatedAt = currentNow
                 return disabled
             }
             return alarm
